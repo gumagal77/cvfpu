@@ -13,6 +13,11 @@
 
 // Author: Stefan Mach <smach@iis.ee.ethz.ch>
 
+`ifndef FPNEW_PKG_SV
+`define FPNEW_PKG_SV
+
+
+
 package fpnew_pkg;
 
   // ---------
@@ -27,6 +32,9 @@ package fpnew_pkg;
   // | FP16ALT    | binary16alt      | 16 bit | 8        | 7
   // | FP8ALT     | binary8alt       |  8 bit | 4        | 3
   // *NOTE:* Add new formats only at the end of the enumeration for backwards compatibilty!
+  // | FP6        | binary6          |  6 bit | 2        | 3
+  // | FP6ALT     | binary6alt       |  6 bit | 3        | 2
+  // | FP4        | binary4          |  4 bit | 2        | 1
 
   // Encoding for a format
   typedef struct packed {
@@ -34,7 +42,7 @@ package fpnew_pkg;
     int unsigned man_bits;
   } fp_encoding_t;
 
-  localparam int unsigned NUM_FP_FORMATS = 6; // change me to add formats
+  localparam int unsigned NUM_FP_FORMATS = 9; // change me to add formats
   localparam int unsigned FP_FORMAT_BITS = $clog2(NUM_FP_FORMATS);
 
   // FP formats
@@ -44,8 +52,11 @@ package fpnew_pkg;
     FP16    = 'd2,
     FP8     = 'd3,
     FP16ALT = 'd4,
-    FP8ALT  = 'd5
+    FP8ALT  = 'd5,
     // add new formats here
+    FP6     = 'd6,
+    FP6ALT  = 'd7,
+    FP4     = 'd8
   } fp_format_e;
 
   // Encodings for supported FP formats
@@ -55,17 +66,30 @@ package fpnew_pkg;
     '{5,  10}, // IEEE binary16 (half)
     '{5,  2},  // custom binary8
     '{8,  7},  // custom binary16alt
-    '{4,  3}   // custom binary8alt
+    '{4,  3},  // custom binary8alt
     // add new formats here
+    '{2,  3},  // custom binary6
+    '{3,  2},  // custom binary6alt
+    '{2,  1}   // custom binary4
   };
 
   typedef logic [0:NUM_FP_FORMATS-1]       fmt_logic_t;    // Logic indexed by FP format (for masks)
   typedef logic [0:NUM_FP_FORMATS-1][31:0] fmt_unsigned_t; // Unsigned indexed by FP format
 
-  localparam fmt_logic_t CPK_FORMATS  = 6'b110000; // FP32 and FP64 can provide CPK only
+  localparam fmt_logic_t CPK_FORMATS  = 9'b110000000; // FP32 and FP64 can provide CPK only
   // FP32, FP64 cannot be provided for DOTP
   // Small hack: FP32 only enabled for wide enough wrapper input widths for vsum.s instruction
-  localparam fmt_logic_t DOTP_FORMATS = 6'b101111;
+  localparam fmt_logic_t DOTP_FORMATS = 9'b101111111;
+
+  localparam fmt_logic_t USE_OV_UF_DETECTION = 9'b111110_000;
+
+  // 
+  function automatic logic use_ov_uf_detection(fp_format_e fmt);
+    //for (int unsigned i = 0; i < NUM_FP_FORMATS; i++) begin
+    //  if (fmt == MERGED) return (fp_format_e'(i) == fmt);
+    //end
+    return USE_OV_UF_DETECTION[fmt];
+  endfunction
 
   // ---------
   // INT TYPES
@@ -235,7 +259,7 @@ package fpnew_pkg;
     Width:         64,
     EnableVectors: 1'b0,
     EnableNanBox:  1'b1,
-    FpFmtMask:     6'b110000,
+    FpFmtMask:     9'b110000000,
     IntFmtMask:    4'b0011
   };
 
@@ -243,7 +267,7 @@ package fpnew_pkg;
     Width:         64,
     EnableVectors: 1'b1,
     EnableNanBox:  1'b1,
-    FpFmtMask:     6'b110000,
+    FpFmtMask:     9'b110000000,
     IntFmtMask:    4'b0010
   };
 
@@ -251,7 +275,7 @@ package fpnew_pkg;
     Width:         32,
     EnableVectors: 1'b0,
     EnableNanBox:  1'b1,
-    FpFmtMask:     6'b100000,
+    FpFmtMask:     9'b100000000,
     IntFmtMask:    4'b0010
   };
 
@@ -259,7 +283,7 @@ package fpnew_pkg;
     Width:         64,
     EnableVectors: 1'b1,
     EnableNanBox:  1'b1,
-    FpFmtMask:     6'b111111,
+    FpFmtMask:     9'b111111111,
     IntFmtMask:    4'b1111
   };
 
@@ -267,7 +291,7 @@ package fpnew_pkg;
     Width:         32,
     EnableVectors: 1'b1,
     EnableNanBox:  1'b1,
-    FpFmtMask:     6'b101111,
+    FpFmtMask:     9'b101111111,
     IntFmtMask:    4'b1110
   };
 
@@ -275,7 +299,7 @@ package fpnew_pkg;
     Width:         32,
     EnableVectors: 1'b1,
     EnableNanBox:  1'b1,
-    FpFmtMask:     6'b100010,
+    FpFmtMask:     9'b100010000,
     IntFmtMask:    4'b0110
   };
 
@@ -595,3 +619,6 @@ package fpnew_pkg;
   endfunction
 
 endpackage
+
+
+`endif /* FPNEW_PKG_SV */
