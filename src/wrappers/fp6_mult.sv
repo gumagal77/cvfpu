@@ -1,16 +1,16 @@
-`define WIDTH 6
+localparam WIDTH = 6;
 
 module fp6_mult (
 	input logic                               clk_i,
   	input logic                               rst_ni,
 	// Input signals
-  	input logic [1:0][`WIDTH-1:0] operands_i, // 2 operands of 6 bits
+  	input logic [WIDTH-1:0] a_i, b_i, // 2 operands of 6 bits
 	  // Input Handshake
 	input  logic                              in_valid_i,
 	output logic                              in_ready_o,
 	input  logic                              flush_i,
 	// Output signals
-	output logic [`WIDTH-1:0]                        result_o,
+	output logic [WIDTH-1:0]                        result_o,
   	output logic [4:0]                status_o,
 	// Output handshake
 	output logic                              out_valid_o,
@@ -42,7 +42,7 @@ localparam fpnew_pkg::fpu_implementation_t fpu_impl = '{
 fpnew_pkg::status_t status;
 
 fpnew_fma_mini #(.FpFormat(fpnew_pkg::FP6), .NumPipeRegs(0), .PipeConfig(fpnew_pkg::BEFORE)) multiplier 
-           (.clk_i, .rst_ni, .operands_i({{(`WIDTH){1'd0}},operands_i}),
+           (.clk_i, .rst_ni, .operands_i({{(WIDTH){1'd0}},b_i,a_i}),
 		    .rnd_mode_i(fpnew_pkg::RMM), // round to nearest, tie to even
 			.op_i(fpnew_pkg::MUL),
 			.op_mod_i('0),

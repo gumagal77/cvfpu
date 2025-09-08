@@ -18,7 +18,8 @@ localparam MAX_VALUE_INT_BITS = $clog2(MAX_VALUE_INT);
 logic clk_i, rst_ni;
 logic in_valid_i, in_ready_o, flush_i;
 
-logic [1:0][WIDTH-1:0] operands_i;
+logic [WIDTH-1:0] a_i;
+logic [WIDTH-1:0] b_i;
 
 logic [WIDTH-1:0] result_o;
 logic [4:0] status_o;
@@ -29,7 +30,8 @@ logic out_valid_o, out_ready_i, busy_o;
 fp8_mult dut (
     .clk_i(clk_i),
     .rst_ni(rst_ni),
-    .operands_i(operands_i),
+    .a_i(a_i),
+    .b_i(b_i),
     .in_valid_i(in_valid_i),
     .in_ready_o(in_ready_o),
     .flush_i(flush_i),
@@ -117,17 +119,15 @@ int NUM_PIPE_REGS = dut.multiplier.NumPipeRegs;
 task test_mult;
     $display("Test %g * %g", a, b);
     @(negedge clk_i);
-    a_fp = get_fp_value(a);
-    b_fp = get_fp_value(b);
     c_exp = a*b;
-    operands_i[0] = a_fp;
-    operands_i[1] = b_fp;
+    a_i = get_fp_value(a);
+    b_i = get_fp_value(b);
     out_ready_i = '1;
     flush_i = '0;
     in_valid_i = '1;
     if(NUM_PIPE_REGS != '0) @(posedge out_valid_o); else @(negedge clk_i);
-    $display("%s * %s = %s", get_bit_string(operands_i[0]), get_bit_string(operands_i[1]), get_bit_string(result_o));
-    $display("%g * %g = %g", get_real_value(operands_i[0]), get_real_value(operands_i[1]), c_real);
+    $display("%s * %s = %s", get_bit_string(a_i), get_bit_string(b_i), get_bit_string(result_o));
+    $display("%g * %g = %g", get_real_value(a_i), get_real_value(b_i), c_real);
     $display("flags:%b", status_o);
     
     if(c_real==c_exp) begin
@@ -163,12 +163,12 @@ task test_out;
     for (int i = 0; i<NUM_TESTS; i=i+1) begin
         @(negedge clk_i);
         fp_values = testvec[i];
-        operands_i[0] = fp_values[0];
-        operands_i[1] = fp_values[1];
-        a = get_real_value(operands_i[0]);
-        b = get_real_value(operands_i[1]);
-        a_fp = operands_i[0];
-        b_fp = operands_i[1];
+        a_i = fp_values[0];
+        b_i = fp_values[1];
+        a = get_real_value(a_i);
+        b = get_real_value(b_i);
+        a_fp = a_i;
+        b_fp = b_i;
         c_fp_exp = fp_values[2];
         c_exp = get_real_value(fp_values[2]);
 
@@ -176,8 +176,8 @@ task test_out;
         flush_i = '0;
         in_valid_i = '1;
         if(NUM_PIPE_REGS != '0) @(posedge out_valid_o); else @(negedge clk_i);
-        $display("%s * %s = %s", get_bit_string(operands_i[0]), get_bit_string(operands_i[1]), get_bit_string(result_o));
-        $display("%g * %g = %g", get_real_value(operands_i[0]), get_real_value(operands_i[1]), c_real);
+        $display("%s * %s = %s", get_bit_string(a_i), get_bit_string(b_i), get_bit_string(result_o));
+        $display("%g * %g = %g", get_real_value(a_i), get_real_value(b_i), c_real);
         $display("flags:%b", status_o);
         
         if(result_o==c_fp_exp) begin
