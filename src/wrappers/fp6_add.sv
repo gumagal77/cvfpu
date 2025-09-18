@@ -1,6 +1,4 @@
-localparam WIDTH = 6;
-
-module fp6_add (
+module fp6_add #(localparam WIDTH = 6) (
 	input logic                               clk_i,
   	input logic                               rst_ni,
 	// Input signals

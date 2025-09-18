@@ -1,6 +1,4 @@
-localparam WIDTH = 4;
-
-module fp4_mult (
+module fp4_mult #(localparam WIDTH = 4) (
 	input logic                               clk_i,
   	input logic                               rst_ni,
 	// Input signals

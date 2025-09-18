@@ -1,6 +1,4 @@
-localparam WIDTH = 32;
-
-module fp32_mult (
+module fp32_mult #(localparam WIDTH = 32) (
 	input logic                               clk_i,
   	input logic                               rst_ni,
 	// Input signals

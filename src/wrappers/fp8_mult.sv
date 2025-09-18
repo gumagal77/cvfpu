@@ -1,6 +1,4 @@
-localparam WIDTH = 8;
-
-module fp8_mult (
+module fp8_mult #(localparam WIDTH = 8) (
 	input logic                               clk_i,
   	input logic                               rst_ni,
 	// Input signals
