@@ -216,10 +216,13 @@ module fpnew_fma_nano #(
 
     // add_i makes A equal to 1
     operand_a = inp_pipe_add_q[NUM_INP_REGS] ? '{sign: 1'b0, exponent: BIAS, mantissa: '0} : operand_a;
+    a_is_normal = inp_pipe_add_q[NUM_INP_REGS] ? ( BIAS>0 ? '1 : '0 ) : a_is_normal;
+    a_is_subnormal = inp_pipe_add_q[NUM_INP_REGS] ? ( BIAS==0 ? '1 : '0 ) : a_is_subnormal;
+    a_is_zero = '0;
 
     // mult_i makes C zero
     operand_c = inp_pipe_mult_q[NUM_INP_REGS] ? '{sign: 1'b0, exponent: '0, mantissa: '0} : operand_c;
-    c_is_normal = '0;
+    c_is_normal = inp_pipe_mult_q[NUM_INP_REGS] ? '0 : c_is_normal;
 
     // inv_a_i inverts sign of A
     operand_a.sign = operand_a.sign ^ inp_pipe_inv_a_q[NUM_INP_REGS];
@@ -668,13 +671,15 @@ module fpnew_fma_nano #(
   logic round_up; // Rounding decision
 
   always_comb begin : rounding_decision
-    unique case (round_sticky_bits)
-      2'b00,
-      2'b01: round_up = 1'b0;           // < ulp/2 away, round down
-      2'b10: round_up = pre_round_abs[0]; // = ulp/2 away, round towards even result
-      2'b11: round_up = 1'b1;           // > ulp/2 away, round up
-      default: round_up = 1'b1;         // don't care
-    endcase
+    // unique case (round_sticky_bits)
+    //   2'b00,
+    //   2'b01: round_up = 1'b0;           // < ulp/2 away, round down
+    //   2'b10: round_up = pre_round_abs[0]; // = ulp/2 away, round towards even result
+    //   2'b11: round_up = 1'b1;           // > ulp/2 away, round up
+    //   default: round_up = 1'b1;         // don't care
+    // endcase
+    // RMM
+    round_up = round_sticky_bits[1];
   end
 
   assign rounded_abs = pre_round_abs == '1 ? pre_round_abs : pre_round_abs + round_up;
