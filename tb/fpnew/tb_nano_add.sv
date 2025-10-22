@@ -1,61 +1,44 @@
-`define TB_NAME tb_fp8alt_mult
-
 `timescale	1ns/1ns
-module `TB_NAME;
+module tb_nano_add;
 
-localparam EXP_BITS = 5;
-localparam MAN_BITS = 2;
-localparam real MAX_VALUE = 57344;
+localparam EXP_BITS = 2;
+localparam MAN_BITS = 3;
+localparam real MAX_VALUE = 7.5;
 
-string input_file_path = "fp8alt_mult_input.txt";
+string input_file_path = "fp6_add_input.txt";
 
 localparam WIDTH = EXP_BITS+MAN_BITS+1;
 localparam BIAS = 2**(EXP_BITS-1)-1;
-localparam int MAX_VALUE_INT = $rtoi(MAX_VALUE*(2**(BIAS+MAN_BITS-1)));
+localparam MAX_VALUE_INT = $rtoi(MAX_VALUE*(2**MAN_BITS));
 localparam MAX_VALUE_INT_BITS = $clog2(MAX_VALUE_INT);
 
 
 logic clk_i, rst_ni;
-logic in_valid_i, in_ready_o, flush_i;
 
 logic [WIDTH-1:0] a_i;
 logic [WIDTH-1:0] b_i;
 
 logic [WIDTH-1:0] result_o;
-logic [4:0] status_o;
-
-logic out_valid_o, out_ready_i, busy_o;
 
 
-fp8alt_mult dut (
-    .clk_i(clk_i),
-    .rst_ni(rst_ni),
-    .a_i(a_i),
-    .b_i(b_i),
-    .in_valid_i(in_valid_i),
-    .in_ready_o(in_ready_o),
-    .flush_i(flush_i),
-    .result_o(result_o),
-    .status_o(status_o),
-    .out_valid_o(out_valid_o),
-    .out_ready_i(out_ready_i),
-    .busy_o(busy_o)
+logic [WIDTH-1:0]   op_a;
+logic [WIDTH-1:0]   op_b;
+
+
+fpnew_fma_nano #(
+    .EXP_BITS(EXP_BITS), .MAN_BITS(MAN_BITS), .NumPipeRegs(0)
+) dut (
+    .clk_i('0), .rst_ni('1),
+    .op_a('0), .op_b(a_i), .op_c(b_i),
+    .sub_i('0), .add_i('1), .mult_i('0), .inv_a_i('0),
+    .result_o(result_o)
 );
+
 
 function automatic string get_bit_string(
     input logic [WIDTH-1:0] fp_value
 );
-    string output_string;
-    if(fp_value[WIDTH-2:MAN_BITS] == '1) begin
-        if(fp_value[MAN_BITS-1:0] == '0) begin
-            output_string = fp_value[WIDTH-1] ? "-inf" : "inf";
-        end else begin
-            output_string = fp_value[WIDTH-1] ? "-nan" : "nan";
-        end
-    end else begin
-        output_string = $sformatf("%b_%b_%b", fp_value[WIDTH-1], fp_value[WIDTH-2:MAN_BITS], fp_value[MAN_BITS-1:0]);
-    end
-    return output_string;
+    return $sformatf("%b_%b_%b", fp_value[WIDTH-1], fp_value[WIDTH-2:MAN_BITS], fp_value[MAN_BITS-1:0]);
 endfunction
 
 function automatic real get_real_value (
@@ -124,21 +107,18 @@ real a, b, c_exp, c_real;
 assign c_real = get_real_value(result_o);
 
 logic [WIDTH-1:0] a_fp, b_fp, c_fp_exp;
-int NUM_PIPE_REGS = dut.multiplier.NumPipeRegs;
+int NUM_PIPE_REGS = dut.NumPipeRegs;
 
-task test_mult;
-    $display("Test %g * %g", a, b);
+task test_add;
+    $display("Test %g + %g", a, b);
     @(negedge clk_i);
-    c_exp = a*b;
+    c_exp = a+b;
     a_i = get_fp_value(a);
     b_i = get_fp_value(b);
-    out_ready_i = '1;
-    flush_i = '0;
-    in_valid_i = '1;
-    if(NUM_PIPE_REGS != '0) @(posedge out_valid_o); else @(negedge clk_i);
-    $display("%s * %s = %s", get_bit_string(a_i), get_bit_string(b_i), get_bit_string(result_o));
-    $display("%g * %g = %g", get_real_value(a_i), get_real_value(b_i), c_real);
-    $display("flags:%b", status_o);
+    if(NUM_PIPE_REGS != '0) repeat(NUM_PIPE_REGS) @(negedge clk_i); else @(negedge clk_i);
+    $display("%s + %s = %s", get_bit_string(a_i), get_bit_string(b_i), get_bit_string(result_o));
+    $display("%g + %g = %g", get_real_value(a_i), get_real_value(b_i), c_real);
+    //$display("flags:%b", status_o);
     
     if(c_real==c_exp) begin
         $display("Result OK\n");
@@ -146,12 +126,8 @@ task test_mult;
         $display("Difference: %g - %g = %g\n", c_real, c_exp, c_real-c_exp);
     end
     
-    out_ready_i = '1;
-    in_valid_i = '0;
     if(NUM_PIPE_REGS != '0) begin
-        @(negedge clk_i)
-        flush_i = '1;
-        out_ready_i = '0;
+        @(negedge clk_i);
     end
 endtask
 
@@ -182,28 +158,19 @@ task test_out;
         c_fp_exp = fp_values[2];
         c_exp = get_real_value(fp_values[2]);
 
-        out_ready_i = '1;
-        flush_i = '0;
-        in_valid_i = '1;
-        if(NUM_PIPE_REGS != '0) @(posedge out_valid_o); else @(negedge clk_i);
-        $display("%s * %s = %s", get_bit_string(a_i), get_bit_string(b_i), get_bit_string(result_o));
-        $display("%g * %g = %g", get_real_value(a_i), get_real_value(b_i), c_real);
-        $display("flags:%b", status_o);
+        if(NUM_PIPE_REGS != '0) repeat(NUM_PIPE_REGS) @(negedge clk_i); else @(negedge clk_i);
+        $display("%s + %s = %s", get_bit_string(a_i), get_bit_string(b_i), get_bit_string(result_o));
+        $display("%g + %g = %g", get_real_value(a_i), get_real_value(b_i), c_real);
+        //$display("flags:%b", status_o);
         
         if(result_o==c_fp_exp) begin
             $display("Result OK\n");
-        end else if(result_o[WIDTH-2:MAN_BITS]!='1) begin
-            $display("Difference: %g - %g = %g\n", c_real, c_exp, c_real-c_exp);
         end else begin
-            $display("Inf or Nan detected. Result: %s  Expected: %s\n",get_bit_string(result_o),get_bit_string(c_fp_exp));
+            $display("Difference: %g - %g = %g\n", c_real, c_exp, c_real-c_exp);
         end
         
-        out_ready_i = '1;
-        in_valid_i = '0;
         if(NUM_PIPE_REGS != '0) begin
-            @(negedge clk_i)
-            flush_i = '1;
-            out_ready_i = '0;
+            @(negedge clk_i);
         end
     end
 endtask
@@ -214,7 +181,7 @@ endtask
 // generate VCD waveform file
 initial begin
     $dumpfile("waveform.vcd"); // Name of the VCD file
-    $dumpvars(0, `TB_NAME); // Dump all variables in this module
+    $dumpvars(0, tb_nano_add); // Dump all variables in this module
 end
 
 // Clock generation
@@ -234,31 +201,31 @@ initial begin
     
     a = 3.5;
     b = 4;
-    test_mult;
+    test_add;
 
     a = 3.5;
     b = 4.5;
-    test_mult;
+    test_add;
 
     a = 0;
     b = -0;
-    test_mult;
+    test_add;
     
     a = 1;
     b = 2;
-    test_mult;
+    test_add;
     
     a = 0.125;
     b = 0.125;
-    test_mult;
+    test_add;
     
     a = -0.25;
     b = 0.25;
-    test_mult;
+    test_add;
 
     a = -0.25;
     b = 2.25;
-    test_mult;
+    test_add;
     
     
     $display("Test: %g is %s", 4.5, get_bit_string(get_fp_value(4.5)));
@@ -270,9 +237,8 @@ initial begin
     test_out;
 
     $finish;
-
 end
 
 
-    
+
 endmodule

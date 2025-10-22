@@ -1,13 +1,11 @@
-`define TB_NAME tb_fp8_add
-
 `timescale	1ns/1ns
-module `TB_NAME;
+module tb_nano_mult;
 
-localparam EXP_BITS = 4;
+localparam EXP_BITS = 2;
 localparam MAN_BITS = 3;
-localparam real MAX_VALUE = 448;
+localparam real MAX_VALUE = 7.5;
 
-string input_file_path = "fp8_add_input.txt";
+string input_file_path = "fp6_mult_input.txt";
 
 localparam WIDTH = EXP_BITS+MAN_BITS+1;
 localparam BIAS = 2**(EXP_BITS-1)-1;
@@ -16,31 +14,26 @@ localparam MAX_VALUE_INT_BITS = $clog2(MAX_VALUE_INT);
 
 
 logic clk_i, rst_ni;
-logic in_valid_i, in_ready_o, flush_i;
 
 logic [WIDTH-1:0] a_i;
 logic [WIDTH-1:0] b_i;
 
 logic [WIDTH-1:0] result_o;
-logic [4:0] status_o;
-
-logic out_valid_o, out_ready_i, busy_o;
 
 
-fp8_add dut (
-    .clk_i(clk_i),
-    .rst_ni(rst_ni),
-    .a_i(a_i),
-    .b_i(b_i),
-    .in_valid_i(in_valid_i),
-    .in_ready_o(in_ready_o),
-    .flush_i(flush_i),
-    .result_o(result_o),
-    .status_o(status_o),
-    .out_valid_o(out_valid_o),
-    .out_ready_i(out_ready_i),
-    .busy_o(busy_o)
+logic [WIDTH-1:0]   op_a;
+logic [WIDTH-1:0]   op_b;
+
+
+fpnew_fma_nano #(
+    .EXP_BITS(EXP_BITS), .MAN_BITS(MAN_BITS), .NumPipeRegs(0)
+) dut (
+    .clk_i('0), .rst_ni('1),
+    .op_a(a_i), .op_b(b_i), .op_c('0),
+    .sub_i('0), .add_i('0), .mult_i('1), .inv_a_i('0),
+    .result_o(result_o)
 );
+
 
 function automatic string get_bit_string(
     input logic [WIDTH-1:0] fp_value
@@ -76,7 +69,7 @@ function automatic logic [WIDTH-1:0] get_fp_value (
     int exp, man;
     logic [EXP_BITS-1:0] exp_bits;
     logic [MAN_BITS-1:0] man_bits;
-    
+
     // overflow
     if (int_value > MAX_VALUE_INT) begin // max_value*8
         return {value_neg,{(WIDTH-1){1'b1}}};
@@ -114,21 +107,18 @@ real a, b, c_exp, c_real;
 assign c_real = get_real_value(result_o);
 
 logic [WIDTH-1:0] a_fp, b_fp, c_fp_exp;
-int NUM_PIPE_REGS = dut.adder.NumPipeRegs;
+int NUM_PIPE_REGS = dut.NumPipeRegs;
 
-task test_add;
-    $display("Test %g + %g", a, b);
+task test_mult;
+    $display("Test %g * %g", a, b);
     @(negedge clk_i);
-    c_exp = a+b;
+    c_exp = a*b;
     a_i = get_fp_value(a);
     b_i = get_fp_value(b);
-    out_ready_i = '1;
-    flush_i = '0;
-    in_valid_i = '1;
-    if(NUM_PIPE_REGS != '0) @(posedge out_valid_o); else @(negedge clk_i);
-    $display("%s + %s = %s", get_bit_string(a_i), get_bit_string(b_i), get_bit_string(result_o));
-    $display("%g + %g = %g", get_real_value(a_i), get_real_value(b_i), c_real);
-    $display("flags:%b", status_o);
+    if(NUM_PIPE_REGS != '0) repeat(NUM_PIPE_REGS) @(negedge clk_i); else @(negedge clk_i);
+    $display("%s * %s = %s", get_bit_string(a_i), get_bit_string(b_i), get_bit_string(result_o));
+    $display("%g * %g = %g", get_real_value(a_i), get_real_value(b_i), c_real);
+    //$display("flags:%b", status_o);
     
     if(c_real==c_exp) begin
         $display("Result OK\n");
@@ -136,12 +126,8 @@ task test_add;
         $display("Difference: %g - %g = %g\n", c_real, c_exp, c_real-c_exp);
     end
     
-    out_ready_i = '1;
-    in_valid_i = '0;
     if(NUM_PIPE_REGS != '0) begin
-        @(negedge clk_i)
-        flush_i = '1;
-        out_ready_i = '0;
+        @(negedge clk_i);
     end
 endtask
 
@@ -170,16 +156,12 @@ task test_out;
         a_fp = a_i;
         b_fp = b_i;
         c_fp_exp = fp_values[2];
-        c_exp = get_real_value(c_fp_exp);
         c_exp = get_real_value(fp_values[2]);
 
-        out_ready_i = '1;
-        flush_i = '0;
-        in_valid_i = '1;
-        if(NUM_PIPE_REGS != '0) @(posedge out_valid_o); else @(negedge clk_i);
-        $display("%s + %s = %s", get_bit_string(a_i), get_bit_string(b_i), get_bit_string(result_o));
-        $display("%g + %g = %g", get_real_value(a_i), get_real_value(b_i), c_real);
-        $display("flags:%b", status_o);
+        if(NUM_PIPE_REGS != '0) repeat(NUM_PIPE_REGS) @(negedge clk_i); else @(negedge clk_i);
+        $display("%s * %s = %s", get_bit_string(a_i), get_bit_string(b_i), get_bit_string(result_o));
+        $display("%g * %g = %g", get_real_value(a_i), get_real_value(b_i), c_real);
+        //$display("flags:%b", status_o);
         
         if(result_o==c_fp_exp) begin
             $display("Result OK\n");
@@ -187,12 +169,8 @@ task test_out;
             $display("Difference: %g - %g = %g\n", c_real, c_exp, c_real-c_exp);
         end
         
-        out_ready_i = '1;
-        in_valid_i = '0;
         if(NUM_PIPE_REGS != '0) begin
-            @(negedge clk_i)
-            flush_i = '1;
-            out_ready_i = '0;
+            @(negedge clk_i);
         end
     end
 endtask
@@ -203,7 +181,7 @@ endtask
 // generate VCD waveform file
 initial begin
     $dumpfile("waveform.vcd"); // Name of the VCD file
-    $dumpvars(0, `TB_NAME); // Dump all variables in this module
+    $dumpvars(0, tb_nano_mult); // Dump all variables in this module
 end
 
 // Clock generation
@@ -223,31 +201,31 @@ initial begin
     
     a = 3.5;
     b = 4;
-    test_add;
+    test_mult;
 
     a = 3.5;
     b = 4.5;
-    test_add;
+    test_mult;
 
     a = 0;
     b = -0;
-    test_add;
+    test_mult;
     
     a = 1;
     b = 2;
-    test_add;
+    test_mult;
     
     a = 0.125;
     b = 0.125;
-    test_add;
+    test_mult;
     
     a = -0.25;
     b = 0.25;
-    test_add;
+    test_mult;
 
     a = -0.25;
     b = 2.25;
-    test_add;
+    test_mult;
     
     
     $display("Test: %g is %s", 4.5, get_bit_string(get_fp_value(4.5)));
@@ -263,5 +241,6 @@ initial begin
 end
 
 
-    
+
+
 endmodule
