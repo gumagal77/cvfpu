@@ -3,12 +3,13 @@ module tb_nano_mult;
 
 localparam EXP_BITS = 2;
 localparam MAN_BITS = 3;
+localparam BIAS     = 1;
 localparam real MAX_VALUE = 7.5;
 
 string input_file_path = "fp6_mult_input.txt";
 
 localparam WIDTH = EXP_BITS+MAN_BITS+1;
-localparam BIAS = 2**(EXP_BITS-1)-1;
+//localparam BIAS = 2**(EXP_BITS-1)-1;
 localparam MAX_VALUE_INT = $rtoi(MAX_VALUE*(2**MAN_BITS));
 localparam MAX_VALUE_INT_BITS = $clog2(MAX_VALUE_INT);
 
@@ -26,7 +27,7 @@ logic [WIDTH-1:0]   op_b;
 
 
 fpnew_fma_nano #(
-    .EXP_BITS(EXP_BITS), .MAN_BITS(MAN_BITS), .NumPipeRegs(0)
+    .EXP_BITS(EXP_BITS), .MAN_BITS(MAN_BITS), .BIAS(BIAS), .NumPipeRegs(0)
 ) dut (
     .clk_i('0), .rst_ni('1),
     .op_a(a_i), .op_b(b_i), .op_c('0),

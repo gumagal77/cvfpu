@@ -26,6 +26,7 @@ module fpnew_fma_nano #(
 
   parameter int unsigned             EXP_BITS    = 5,
   parameter int unsigned             MAN_BITS    = 2,
+  parameter int unsigned             BIAS        = 15,//2**(EXP_BITS-1)-1,
 
   localparam int unsigned WIDTH = EXP_BITS + MAN_BITS + 1 // do not change
 ) (
@@ -68,7 +69,7 @@ module fpnew_fma_nano #(
   // ----------
   //localparam int unsigned EXP_BITS = fpnew_pkg::exp_bits(FpFormat);
   //localparam int unsigned MAN_BITS = fpnew_pkg::man_bits(FpFormat);
-  localparam int unsigned BIAS     = 2**(EXP_BITS-1)-1;
+  
   // Precision bits 'p' include the implicit bit
   localparam int unsigned PRECISION_BITS = MAN_BITS + 1;
   // The lower 2p+3 bits of the internal FMA result will be needed for leading-zero detection
