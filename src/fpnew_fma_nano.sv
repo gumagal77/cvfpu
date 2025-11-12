@@ -13,7 +13,22 @@
 
 // Author: Stefan Mach <smach@iis.ee.ethz.ch>
 
-`include "common_cells/include/common_cells/registers.svh"
+//`include "common_cells/include/common_cells/registers.svh"
+// Flip-Flop with asynchronous active-low reset (implicit clock and reset)
+// __q: Q output of FF
+// __d: D input of FF
+// __reset_value: value assigned upon reset
+// Implicit:
+// clk_i: clock input
+// rst_ni: reset input (asynchronous, active low)
+`define FF(__q, __d, __reset_value)                  \
+  always_ff @(posedge clk_i or negedge rst_ni) begin \
+    if (!rst_ni) begin                               \
+      __q <= (__reset_value);                        \
+    end else begin                                   \
+      __q <= (__d);                                  \
+    end                                              \
+  end
 
 `define MAX(a,b) ((a>b)?a:b)
 
