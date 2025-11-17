@@ -1,0 +1,2 @@
+script_dir=$(dirname "$(readlink -f "$0")")
+gcc -std=c99 ${script_dir}/generate_lns_consts.c -lm -o ${script_dir}/generate_lns_consts && ${script_dir}/generate_lns_consts $1 $2 && rm ${script_dir}/generate_lns_consts

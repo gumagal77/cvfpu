@@ -42,6 +42,8 @@ module fpnew_fma_nano #(
   parameter int unsigned             EXP_BITS    = 5,
   parameter int unsigned             MAN_BITS    = 2,
   parameter int unsigned             BIAS        = 15,//2**(EXP_BITS-1)-1,
+  parameter USE_LNS  = 0,
+  parameter USE_LNS_COR = 0,
 
   localparam int unsigned WIDTH = EXP_BITS + MAN_BITS + 1 // do not change
 ) (
@@ -391,7 +393,15 @@ module fpnew_fma_nano #(
   assign mantissa_c = {c_is_normal, operand_c.mantissa};
 
   // Mantissa multiplier (a*b)
-  assign product = mantissa_a * mantissa_b;
+  if(USE_LNS==0) begin
+        assign product = mantissa_a * mantissa_b;
+    end else begin
+        mult_qmn_lns #(.M(PRECISION_BITS), .N(0), .USE_COR(USE_LNS_COR), .NUM_REGS(0)
+        ) mult_lns (
+            .clk('0), .rst('0), .a(mantissa_a), .b(mantissa_b),
+            .c(product)
+        );
+    end
 
   // Product is placed into a 3p+4 bit wide vector, padded with 2 bits for round and sticky:
   // | 000...000 | product | RS |
